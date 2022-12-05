@@ -26,4 +26,6 @@ void mm_init(enum policy_type policy, void *vm, int vm_size, int num_frames, int
 
 void mm_logger(int virt_page, int fault_type, int evicted_page, int write_back, unsigned int phy_addr);
 
+void sigsegv_handler(int signal, siginfo_t* siginfo, void* uap);
+
 #endif
