@@ -119,19 +119,22 @@ int main(int argc, char *argv[])
     {
         if (strcmp(op->operation, "read") == 0)
         {
-            int read_value = vm_ptr_char[(op->startOffset * 4) + (op->pageNumber * PAGE_SIZE)];
             printf("[main.c] READ FROM: %p\n", &vm_ptr_char[(op->startOffset * 4) + (op->pageNumber * PAGE_SIZE)]); //REMOVE!
+            int read_value = vm_ptr_char[(op->startOffset * 4) + (op->pageNumber * PAGE_SIZE)];
+            printf("[main.c] VALUE READ: %d\n", read_value); //REMOVE!
         }
         else if (strcmp(op->operation, "write") == 0)
         {
-            vm_ptr_char[(op->startOffset * 4) + (op->pageNumber * PAGE_SIZE)] = op->value;
             printf("[main.c] WRITE TO: %p\n", &vm_ptr_char[(op->startOffset * 4) + (op->pageNumber * PAGE_SIZE)]); //REMOVE!
+            vm_ptr_char[(op->startOffset * 4) + (op->pageNumber * PAGE_SIZE)] = op->value;
+            printf("[main.c] VALUE WRITTEN: %d\n", op->value); //REMOVE!
         }
         else
         {
             fprintf(stderr, "Incorrect input file content\n");
             return -1;
         }
+        printf("\n\n"); //REMOVE!
     }
 
     print_stats(output_file);
