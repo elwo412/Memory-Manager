@@ -15,7 +15,7 @@ void mm_init(enum policy_type policy, void *vm, int vm_size, int num_frames, int
 	vm_ptr = vm;
 	PAGE_SIZE = page_size;
 
-	page_table = malloc(sizeof(v_Page)*(vm_size/PAGE_SIZE) + sizeof(Table_Stack));
+	page_table = (Table_Stack *)malloc(sizeof(v_Page)*(vm_size/PAGE_SIZE) + sizeof(Table_Stack));
 
 	vmmu_init(num_frames, page_table);
 
@@ -41,7 +41,6 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 
 	//decode whether read or write operation
 	int fault_type = (((ucontext_t *)context)->uc_mcontext.gregs[19] & 2) / 2; // 0 if read | 1 if write
-	printf("%s", fault_type ? "op: WRITE\n" : "op: READ\n");
 
 	//find physical frame
 	v_Page *phys_frame = get_frame(virt_page, page_table, fault_type);
@@ -55,6 +54,7 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 		evict(&page_buf, virt_page, page_table, fault_type);
 		evicted_page = page_buf.virt_page;
 		write_back = page_buf.modified;
+		printf("Evicted Virtual Page #:     %d\n", evicted_page);
 		void *evicted_page_mem = vm_ptr + evicted_page*PAGE_SIZE;
 		mprotect(evicted_page_mem, PAGE_SIZE, PROT_NONE);
 		phy_addr = (page_table->tail->frame_number)*PAGE_SIZE+offset;
@@ -65,13 +65,16 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 	}
 
 	int ret;
-	if (fault_type) ret = mprotect(v_mem_start, PAGE_SIZE, PROT_READ | PROT_WRITE); // PROT_NONE | PROT_READ ?
-	else ret = mprotect(v_mem_start, PAGE_SIZE, PROT_READ | PROT_WRITE);
+	if (fault_type) ret = mprotect(v_mem_start, PAGE_SIZE, PROT_WRITE); // PROT_NONE | PROT_READ ?
+	else ret = mprotect(v_mem_start, PAGE_SIZE, PROT_READ);
 	if (ret < 0){
 		perror("mprotect failed with error:");
 		printf("More info: failed with error %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
+
+	fault_type += ((ucontext_t *)context)->uc_mcontext.gregs[19] & 1;
+	printf("Fault Value = %d\n", fault_type);
 
 #pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
 	mm_logger(virt_page, fault_type, evicted_page, write_back, (int)phy_addr);

@@ -39,6 +39,7 @@ typedef struct {
 void vmmu_init(int num_frames, Table_Stack *page_table);
 v_Page* get_frame(int virt_page, Table_Stack *g_page_map, int f_type);
 int evict(v_Page *page_buf, int virt_page, Table_Stack *g_page_map, int f_type);
+v_Page* add_frame(int virt_page, Table_Stack *g_page_map, int f_type);
 
 
 
