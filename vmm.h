@@ -13,6 +13,7 @@ typedef struct {
 	int modified; // 1 if write/store to a page
 	int referenced; // 1 if read/write to a page
 	int virt_page;
+	void *v_mem_addr;
 
 } v_Page;
 
@@ -33,9 +34,9 @@ typedef struct {
 } Table_Stack; 
 
 
-void vmmu_init();
-v_Page* get_frame(int virt_page);
-int evict(int virt_page);
+void vmmu_init(int num_frames, Table_Stack *page_table);
+v_Page* get_frame(int virt_page, Table_Stack *page_table);
+int evict(int virt_page, Table_Stack *page_table);
 
 
 

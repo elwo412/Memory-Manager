@@ -3,17 +3,17 @@
 // Memory Manager implementation
 // Implement all other functions here...
 
-Table_Stack g_page_map;
-
-void vmmu_init(int num_frames){
+void vmmu_init(int num_frames, Table_Stack *g_page_map){
 	//set up policy type logic, etc.
-	g_page_map.maxLength = num_frames;
+	g_page_map->count = 0;
+	g_page_map->maxLength = num_frames;
 }
 
-v_Page* get_frame(int virt_page){
-	if (g_page_map.count) {
+v_Page* get_frame(int virt_page, Table_Stack *g_page_map){
+	if (g_page_map->count) {
 		v_Page *frame;
-		frame = g_page_map.head;
+		frame = g_page_map->head;
+		printf("NEXT FRAME: %p", frame->next);
 		while (frame->next != NULL && frame->virt_page != virt_page) {
 			printf("GOOD\n");
 			frame = (v_Page *)frame->next;
@@ -27,29 +27,33 @@ v_Page* get_frame(int virt_page){
 	}
 	else {
 		//empty linked list
-		v_Page frame;
-		g_page_map.head = &frame;
-		g_page_map.head->frame_number = 0;
-		g_page_map.head->virt_page = virt_page;
-		g_page_map.count += 1;
-		printf("%d\n", g_page_map.head->frame_number);
-		return g_page_map.head;
+		printf("Setting head to virt page:  %d\n", virt_page);
+		v_Page *frame = g_page_map->head;
+		frame->frame_number = 0;
+		frame->virt_page = virt_page;
+		frame->next = NULL;
+		g_page_map->count += 1;
+		g_page_map->tail = g_page_map->head;
+		return g_page_map->head;
 	}
 }
 
-int evict(int virt_page){
+int evict(int virt_page, Table_Stack *g_page_map){
 	//policy type conditional needed (FIFO for now)
-	if (g_page_map.head->next == NULL) {
+	if (g_page_map->head->next == NULL) {
 		v_Page frame;
-		int evicted_v_page = g_page_map.head->virt_page;
-		g_page_map.head = &frame;
-		g_page_map.head->frame_number = 0;
-		g_page_map.head->virt_page = virt_page;
-		printf("RETURNING EVICTED VIRT PAGE: %d\n", evicted_v_page);
+		int evicted_v_page = g_page_map->head->virt_page;
+		*g_page_map->head = frame;
+		g_page_map->head->frame_number = 0;
+		g_page_map->head->virt_page = virt_page;
+		g_page_map->head->next = NULL;
+		g_page_map->tail = g_page_map->head;
+		printf("Evicted Virt Page:          %d\n", evicted_v_page);
+		printf("Added Virt Page:            %d\n", virt_page);
 		return evicted_v_page;
 	} else {
 		//need to update for frame counts > 1
-		g_page_map.head = (v_Page *)g_page_map.head->next;
+		g_page_map->head = (v_Page *)g_page_map->head->next;
 		return -2;
 	}
 }

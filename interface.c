@@ -7,6 +7,7 @@
 
 void *vm_ptr;
 int PAGE_SIZE;
+Table_Stack *page_table;
 
 void mm_init(enum policy_type policy, void *vm, int vm_size, int num_frames, int page_size)
 {
@@ -14,7 +15,9 @@ void mm_init(enum policy_type policy, void *vm, int vm_size, int num_frames, int
 	vm_ptr = vm;
 	PAGE_SIZE = page_size;
 
-	vmmu_init(num_frames);
+	page_table = malloc(sizeof(v_Page)*(vm_size/PAGE_SIZE) + sizeof(Table_Stack));
+
+	vmmu_init(num_frames, page_table);
 
 	//Setting up memory protections
 	//printf("Page 1 ends at memory address %p\n", vm+page_size);
@@ -37,14 +40,16 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 	printf("Virtual page #:             %d\n", virt_page);
 
 
-	v_Page *phys_frame = get_frame(virt_page);
+	v_Page *phys_frame = get_frame(virt_page, page_table);
 	void *phy_addr;
 	int evicted_page = -1;
 
 	if (phys_frame == NULL) {
 		printf("Physical Frame Not Found\n");
-		evicted_page = evict(virt_page);
-		printf("Evicted Frame: %d\n", evicted_page);
+		evicted_page = evict(virt_page, page_table);
+		void *evicted_page_mem = vm_ptr + evicted_page*PAGE_SIZE;
+		mprotect(evicted_page_mem, PAGE_SIZE, PROT_NONE);
+		phy_addr = (page_table->tail->frame_number)*PAGE_SIZE+offset;
 	}
 	else {
 		phy_addr = (phys_frame->frame_number)*PAGE_SIZE+offset;
