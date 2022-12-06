@@ -9,6 +9,7 @@ typedef struct {
 	struct v_Page *prev, *next;
 	int frame_number;
 	int offset;
+	int resident;
 	int protection_bit; //define later
 	int modified; // 1 if write/store to a page
 	int referenced; // 1 if read/write to a page
@@ -26,17 +27,18 @@ typedef struct {
 
 typedef struct {
 	int maxLength;
-	int count;
-	v_Page *head;
-	v_Page *tail;
+	int resident_count;
+	v_Page *head; //head -> tail = resident pages
+	v_Page *tail; //tail.next -> end = non-resident pages
+	v_Page *end;
 	enum policy_type pt;
 
 } Table_Stack; 
 
 
 void vmmu_init(int num_frames, Table_Stack *page_table);
-v_Page* get_frame(int virt_page, Table_Stack *page_table);
-int evict(int virt_page, Table_Stack *page_table);
+v_Page* get_frame(int virt_page, Table_Stack *g_page_map, int f_type);
+int evict(v_Page *page_buf, int virt_page, Table_Stack *g_page_map, int f_type);
 
 
 

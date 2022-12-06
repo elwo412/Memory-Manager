@@ -39,14 +39,22 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 	printf("Virtual mem page:           %p\n", v_mem_start);
 	printf("Virtual page #:             %d\n", virt_page);
 
+	//decode whether read or write operation
+	int fault_type = (((ucontext_t *)context)->uc_mcontext.gregs[19] & 2) / 2; // 0 if read | 1 if write
+	printf("%s", fault_type ? "op: WRITE\n" : "op: READ\n");
 
-	v_Page *phys_frame = get_frame(virt_page, page_table);
+	//find physical frame
+	v_Page *phys_frame = get_frame(virt_page, page_table, fault_type);
 	void *phy_addr;
 	int evicted_page = -1;
+	int write_back = 0;
 
 	if (phys_frame == NULL) {
 		printf("Physical Frame Not Found\n");
-		evicted_page = evict(virt_page, page_table);
+		v_Page page_buf;
+		evict(&page_buf, virt_page, page_table, fault_type);
+		evicted_page = page_buf.virt_page;
+		write_back = page_buf.modified;
 		void *evicted_page_mem = vm_ptr + evicted_page*PAGE_SIZE;
 		mprotect(evicted_page_mem, PAGE_SIZE, PROT_NONE);
 		phy_addr = (page_table->tail->frame_number)*PAGE_SIZE+offset;
@@ -56,9 +64,6 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 		printf("Physical Frame Loc: %p\n", phy_addr);
 	}
 
-	//decode whether read or write operation
-	int fault_type = (((ucontext_t *)context)->uc_mcontext.gregs[19] & 2) / 2; // 0 if read | 1 if write
-	printf("%s", fault_type ? "op: WRITE\n" : "op: READ\n");
 	int ret;
 	if (fault_type) ret = mprotect(v_mem_start, PAGE_SIZE, PROT_READ | PROT_WRITE); // PROT_NONE | PROT_READ ?
 	else ret = mprotect(v_mem_start, PAGE_SIZE, PROT_READ | PROT_WRITE);
@@ -68,7 +73,6 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 		exit(EXIT_FAILURE);
 	}
 
-	int write_back = 0; //CHANGE
 #pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
 	mm_logger(virt_page, fault_type, evicted_page, write_back, (int)phy_addr);
 #pragma GCC diagnostic warning "-Wpointer-to-int-cast"
