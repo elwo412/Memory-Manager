@@ -38,7 +38,8 @@ v_Page* get_frame(int virt_page, Table_Stack *g_page_map, int f_type){
 
 	//completely empty linked list
 	printf("Setting head to virt page:  %d\n", virt_page);
-	v_Page *frame = g_page_map->head;
+	v_Page *frame = (v_Page *)malloc(sizeof(v_Page));
+	g_page_map->head = frame;
 	frame->frame_number = 0;
 	frame->virt_page = virt_page;
 	frame->resident = 1;

@@ -15,7 +15,7 @@ void mm_init(enum policy_type policy, void *vm, int vm_size, int num_frames, int
 	vm_ptr = vm;
 	PAGE_SIZE = page_size;
 
-	page_table = (Table_Stack *)malloc(sizeof(v_Page)*(vm_size/PAGE_SIZE) + sizeof(Table_Stack));
+	page_table = (Table_Stack *)malloc(sizeof(Table_Stack));
 
 	vmmu_init(num_frames, page_table);
 
