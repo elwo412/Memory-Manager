@@ -11,6 +11,7 @@ typedef struct {
 	int offset;
 	int resident;
 	int protection_bit; //define later
+	int wb;
 	int modified; // 1 if write/store to a page
 	int referenced; // 1 if read/write to a page
 	int virt_page;

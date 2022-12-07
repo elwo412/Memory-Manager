@@ -5,5 +5,6 @@ type	virt-page	evicted-virt-page	write-back	phy-addr
 0		1		-1		0		0x1010
 0		2		-1		0		0x2020
 0		3		-1		0		0x3010
-0		4		12		22		0x3020
-0		8		12		22		0x3000
+0		4		0		1		0x0020
+0		0		1		0		0x1020
+0		8		2		0		0x2000

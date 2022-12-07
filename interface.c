@@ -41,6 +41,7 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 
 	//decode whether read or write operation
 	int fault_type = (((ucontext_t *)context)->uc_mcontext.gregs[19] & 2) / 2; // 0 if read | 1 if write
+	printf("[DEBUG] ORIGINAL FAULT TYPE: %lld   (aka take-out later)\n", ((ucontext_t *)context)->uc_mcontext.gregs[19]);
 
 	//find physical frame
 	v_Page *phys_frame = get_frame(virt_page, page_table, fault_type);
@@ -53,7 +54,7 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 		v_Page page_buf;
 		evict(&page_buf, virt_page, page_table, fault_type);
 		evicted_page = page_buf.virt_page;
-		write_back = page_buf.modified;
+		write_back = page_buf.wb;
 		printf("Evicted Virtual Page #:     %d\n", evicted_page);
 		void *evicted_page_mem = vm_ptr + evicted_page*PAGE_SIZE;
 		mprotect(evicted_page_mem, PAGE_SIZE, PROT_NONE);

@@ -8,4 +8,4 @@ type	virt-page	evicted-virt-page	write-back	phy-addr
 2		0		-1		0		0x0010
 2		1		-1		0		0x1020
 2		2		-1		0		0x2010
-1		4		12		21		0x3010
+1		4		0		1		0x0010
