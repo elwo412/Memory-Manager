@@ -6,7 +6,7 @@ excluded=""
 files=""
 
 alloc_policy=2
-num_frames=4
+num_frames=16
 
 while getopts raf:e: flag
 do
