@@ -17,7 +17,7 @@ void mm_init(enum policy_type policy, void *vm, int vm_size, int num_frames, int
 
 	page_table = (Table_Stack *)malloc(sizeof(Table_Stack));
 
-	vmmu_init(num_frames, page_table);
+	vmmu_init(num_frames, page_table, policy);
 
 	//Setting up memory protections
 	//printf("Page 1 ends at memory address %p\n", vm+page_size);
