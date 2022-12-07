@@ -20,25 +20,20 @@ typedef struct {
 } v_Page;
 
 typedef struct {
-	int dirty_bit;
-	int resident;
-	int physical_page_number;
-
-} Table_Element; 
-
-typedef struct {
 	int maxLength;
 	int resident_count;
 	v_Page *head; //head -> tail = resident pages
 	v_Page *tail; //tail.next -> end = non-resident pages
-	v_Page *end;
+	int page_size;
 	enum policy_type pt;
+	void *vm_ptr;
+
 
 } Table_Stack; 
 
 
 void vmmu_init(int num_frames, Table_Stack *page_table, enum policy_type policy);
-v_Page* get_frame(int virt_page, Table_Stack *g_page_map, int f_type);
+v_Page* get_frame(int virt_page, Table_Stack *g_page_map, int f_type, int *existing_rw);
 int evict(v_Page *page_buf, int virt_page, Table_Stack *g_page_map, int f_type);
 int evict_FIFO(v_Page *page_buf, int virt_page, Table_Stack *g_page_map, int f_type);
 int evict_THIRD(v_Page *page_buf, int virt_page, Table_Stack *g_page_map, int f_type);

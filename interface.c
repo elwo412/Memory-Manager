@@ -16,6 +16,8 @@ void mm_init(enum policy_type policy, void *vm, int vm_size, int num_frames, int
 	PAGE_SIZE = page_size;
 
 	page_table = (Table_Stack *)malloc(sizeof(Table_Stack));
+	page_table->vm_ptr = vm_ptr;
+	page_table->page_size = PAGE_SIZE;
 
 	vmmu_init(num_frames, page_table, policy);
 
@@ -40,14 +42,17 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 	printf("Virtual page #:             %d\n", virt_page);
 
 	//decode whether read or write operation
-	int fault_type = (((ucontext_t *)context)->uc_mcontext.gregs[19] & 2) / 2; // 0 if read | 1 if write
+	int fault_type = (((ucontext_t *)context)->uc_mcontext.gregs[19] & 2) / 2; // 0 (act4) if read | 1 (act6) if write
 	printf("[DEBUG] ORIGINAL FAULT TYPE: %lld   (aka take-out later)\n", ((ucontext_t *)context)->uc_mcontext.gregs[19]);
 
+	int existing_rw = 0;
+
 	//find physical frame
-	v_Page *phys_frame = get_frame(virt_page, page_table, fault_type);
+	v_Page *phys_frame = get_frame(virt_page, page_table, fault_type, &existing_rw);
 	void *phy_addr;
 	int evicted_page = -1;
 	int write_back = 0;
+	int modify_existing = ((ucontext_t *)context)->uc_mcontext.gregs[19] & 1;
 
 	if (phys_frame == NULL) {
 		printf("Physical Frame Not Found\n");
@@ -74,7 +79,9 @@ void sigsegv_handler(int signal, siginfo_t* siginfo, void* context){
 		exit(EXIT_FAILURE);
 	}
 
-	fault_type += ((ucontext_t *)context)->uc_mcontext.gregs[19] & 1;
+	fault_type += modify_existing;
+	printf("BEFORE Fault Value = %d\n", fault_type);
+	if (existing_rw & fault_type <= 1) fault_type = fault_type + 3;
 	printf("Fault Value = %d\n", fault_type);
 
 #pragma GCC diagnostic ignored "-Wpointer-to-int-cast"

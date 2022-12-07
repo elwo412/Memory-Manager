@@ -5,7 +5,8 @@
 
 v_Page *create_page_entry(int wb, int frame_number, int v_page_num, int resident){
 	v_Page *frame = (v_Page *)malloc(sizeof(v_Page));
-	frame->modified, frame->wb = wb;
+	frame->wb = wb;
+	frame->modified = wb;
 	frame->referenced = 1;
 	frame->frame_number = frame_number;
 	frame->virt_page = v_page_num;
@@ -22,7 +23,7 @@ void vmmu_init(int num_frames, Table_Stack *g_page_map, enum policy_type policy)
 	g_page_map->pt = policy;
 }
 
-v_Page* get_frame(int virt_page, Table_Stack *g_page_map, int f_type){
+v_Page* get_frame(int virt_page, Table_Stack *g_page_map, int f_type, int *existing_rw){
 	//if there are resident frames in the page map
 	if (g_page_map->resident_count) {
 		v_Page *frame;
@@ -43,9 +44,48 @@ v_Page* get_frame(int virt_page, Table_Stack *g_page_map, int f_type){
 			return add_frame(virt_page, g_page_map, f_type);
 		}
 
+		*existing_rw = 1;
 		//frame was found
-		frame->modified, frame->wb = f_type;
 		frame->referenced = 1;
+		if (f_type){
+			frame->wb = f_type;
+			frame->modified = f_type;
+		}
+		
+
+		/*
+		if (g_page_map->pt == MM_THIRD){ //NOT SURE IF CORRECT AT ALL
+			//put frame back to tail
+			if (frame == g_page_map->head){
+				if (g_page_map->resident_count == 2) {
+					g_page_map->head = frame->next;
+					g_page_map->tail = frame;
+					g_page_map->tail->next = NULL;
+					g_page_map->head->next = frame;
+				}
+				else if (g_page_map->resident_count > 2){
+					g_page_map->head = (v_Page *)g_page_map->head->next;
+					v_Page *n_1 = frame;
+					while (n_1->next != g_page_map->tail) n_1 = n_1->next;
+					n_1->next = frame;
+					g_page_map->tail = frame;
+					g_page_map->tail->next = NULL;
+				}
+			}
+			else {
+				if (frame != g_page_map->tail){
+					v_Page *n_1 = g_page_map->head;
+					while (n_1->next != g_page_map->tail){
+						if (n_1->next == frame) n_1->next = frame->next;
+						n_1 = n_1->next;
+					} 
+					n_1->next = frame;
+					g_page_map->tail = frame;
+					g_page_map->tail->next = NULL;
+				}
+			}
+		}
+		*/
 
 		return frame;
 	}
@@ -120,23 +160,80 @@ int evict_FIFO(v_Page *page_buf, int virt_page, Table_Stack *g_page_map, int f_t
 	
 }
 
+v_Page *find_eviction_candidate(v_Page *cpage, Table_Stack *g_page_map){
+	if (cpage == NULL) cpage = g_page_map->head;
+	printf("r: %d | m: %d | w: %d | VIRT PAGE %d\n", cpage->referenced, cpage->modified, cpage->wb, cpage->virt_page);
+
+	if (cpage->referenced == 0 && cpage->modified == 0 && cpage->wb == 0){
+		return cpage;
+	}
+	if (cpage->referenced == 1 && cpage->modified == 0 && cpage->wb == 0){
+		cpage->referenced = 0;
+		mprotect(g_page_map->vm_ptr+cpage->virt_page*g_page_map->page_size, g_page_map->page_size, PROT_NONE);
+		cpage = (v_Page *)cpage->next;
+		return find_eviction_candidate(cpage, g_page_map);
+	}
+	if (cpage->referenced == 0 && cpage->modified == 1 && cpage->wb == 0){
+		cpage->modified = 0;
+		cpage = (v_Page *)cpage->next;
+		return find_eviction_candidate(cpage, g_page_map);
+	}
+	if (cpage->referenced == 0 && cpage->modified == 0 && cpage->wb == 1){
+		return cpage;
+	}
+	if (cpage->referenced == 1 && cpage->modified == 0 && cpage->wb == 1){
+		cpage->referenced = 0;
+		mprotect(g_page_map->vm_ptr+cpage->virt_page*g_page_map->page_size, g_page_map->page_size, PROT_NONE);
+		cpage = (v_Page *)cpage->next;
+		return find_eviction_candidate(cpage, g_page_map);
+	}
+	if (cpage->referenced == 0 && cpage->modified == 1 && cpage->wb == 1){
+		cpage->modified = 0;
+		cpage = (v_Page *)cpage->next;
+		return find_eviction_candidate(cpage, g_page_map);
+	}
+	if (cpage->referenced == 1 && cpage->modified == 0 && cpage->wb == 1){
+		cpage->referenced = 0;
+		mprotect(g_page_map->vm_ptr+cpage->virt_page*g_page_map->page_size, g_page_map->page_size, PROT_NONE);
+		cpage = (v_Page *)cpage->next;
+		return find_eviction_candidate(cpage, g_page_map);
+	}
+	if (cpage->referenced == 1 && cpage->modified == 1 && cpage->wb == 1){
+		cpage->referenced = 0;
+		mprotect(g_page_map->vm_ptr+cpage->virt_page*g_page_map->page_size, g_page_map->page_size, PROT_NONE);
+		cpage = (v_Page *)cpage->next;
+		return find_eviction_candidate(cpage, g_page_map);
+
+	}
+	printf("r: %d | m: %d | w: %d\n", cpage->referenced, cpage->modified, cpage->wb);
+	printf("ERROR ERROR\n");
+	raise(SIGINT);
+}
+
 int evict_THIRD(v_Page *page_buf, int virt_page, Table_Stack *g_page_map, int f_type){
 	
 	//for frame counts > 1
 	v_Page *found = NULL;
 	v_Page *clock_head;
 
+	/*
 	//search for case where R=0 and M=0
 	for (int i = 0; i < 3; i++) {
 		clock_head = g_page_map->head;
-		while (clock_head->next != NULL && clock_head->referenced != 0 || clock_head->modified != 0){
-			if (clock_head->referenced){ clock_head->referenced = 0; }
-			else if (clock_head->modified){ clock_head->modified = 0;}
+		while (clock_head->next != NULL && (clock_head->referenced != 0 || clock_head->modified != 0)){
+			if (clock_head->referenced){ clock_head->referenced = 0; mprotect(g_page_map->vm_ptr+clock_head->virt_page*g_page_map->page_size, g_page_map->page_size, PROT_NONE); printf("[DEBUG] Changed R=0 for v_p=%d (R=%d, M=%d)\n", clock_head->virt_page, clock_head->referenced, clock_head->modified);}
+			else if (clock_head->modified && i > 0){ clock_head->modified = 0; printf("[DEBUG] Changed M=0 for v_p=%d (R=%d, M=%d)\n", clock_head->virt_page, clock_head->referenced, clock_head->modified);}
+			
+
 			clock_head = (v_Page *)clock_head->next;
 		}
+		printf("[DEBUG] PASS %d\n", i);
 		if (!clock_head->referenced && !clock_head->modified) found = clock_head;
 		if (found) break;
 	}
+	*/
+	found = find_eviction_candidate(g_page_map->head, g_page_map);
+	printf("[DEBUG] Found v_p=%d (R=%d, M=%d)\n", found->virt_page, found->referenced, found->modified);
 	
 	//evict found
 	*page_buf = *found;
